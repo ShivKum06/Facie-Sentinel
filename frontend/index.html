@@ -13,6 +13,7 @@
 <article><h2>Incidents</h2><table><thead><tr><th>ID</th><th>Threat</th><th>Endpoint</th><th>Risk</th><th>Facie</th><th>Action</th></tr></thead><tbody id="incidents"></tbody></table></article>
 <article class="detail" id="detail"><h2 id="detail-title"></h2><div class="detail-grid"><div><div class="label">Threat</div><div class="value" id="detail-threat"></div></div><div><div class="label">Endpoint</div><div class="value" id="detail-endpoint"></div></div><div><div class="label">Risk</div><div class="value" id="detail-risk"></div></div><div><div class="label">Facie confidence</div><div class="value" id="detail-confidence"></div></div></div><p class="label">Why Sentinel flagged it</p><ul class="reasons" id="detail-reasons"></ul><p><span class="label">Current action</span><br><strong id="detail-action"></strong></p><div class="actions"><button onclick="overrideIncident('ALLOW')">Override: Allow</button><button class="danger" onclick="overrideIncident('BLOCK')">Keep Blocked</button></div></article>
 </main>
+<script>window.__API_SENTINEL_BACKEND__='https://facie-sentinel.onrender.com';</script>
 <script>
 const backendOrigin = window.__API_SENTINEL_BACKEND__ || `${window.location.protocol === 'file:' ? 'http:' : window.location.protocol}//${window.location.hostname || '127.0.0.1'}:8000`;
 const api=backendOrigin.replace(/\/$/, '');
