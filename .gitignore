@@ -6,3 +6,5 @@ sentinel.db
 sentinel/model.pkl
 sentinel_audit.log
 ~$*.docx
+*.log
+.DS_Store

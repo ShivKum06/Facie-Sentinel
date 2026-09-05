@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#07121e">
+  <title>FACIE Sentinel | Adaptive cyber defense</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="aurora aurora-a"></div><div class="aurora aurora-b"></div>
+  <main>
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">F</span><div><strong>FACIE<span> SENTINEL</span></strong><small>Adaptive security observability</small></div></div>
+      <div class="header-right"><span id="connection" class="connection"><i></i>Connecting</span><span class="model-chip">● <span id="model-status">MODEL ONLINE</span></span></div>
+    </header>
+
+    <section class="hero">
+      <div><p class="eyebrow">AUTONOMOUS DEFENSE CONTROL PLANE</p><h1>See the threat.<br><em>Choose the response.</em></h1><p class="subhead">FACIE combines behavior signals and adaptive policy learning to turn synthetic SOC telemetry into a defensible decision—in real time.</p></div>
+      <div class="controls">
+        <button id="simulate" class="primary"><span>✦</span> Inject safe scenario</button>
+        <button id="auto" class="secondary">Start live mode</button>
+        <button id="reset" class="quiet">Reset session</button>
+        <p>Simulation only · no real network activity</p>
+      </div>
+    </section>
+
+    <section class="metric-grid">
+      <article class="metric featured"><p>Blue team advantage</p><div><strong id="blue-score">0</strong><span class="trend">↑ protecting</span></div><small>Adaptive policy reward</small></article>
+      <article class="metric"><p>Threats contained</p><div><strong id="blocked">0</strong><span class="unit">events</span></div><small id="blocked-note">Waiting for telemetry</small></article>
+      <article class="metric"><p>Detection confidence</p><div><strong id="detection-rate">0</strong><span class="unit">%</span></div><small>Model decision quality</small></article>
+      <article class="metric"><p>Open high risk</p><div><strong id="high-risk">0</strong><span class="unit">signals</span></div><small>Needs SOC attention</small></article>
+    </section>
+
+    <section class="dashboard-grid">
+      <article class="panel live-panel">
+        <div class="panel-head"><div><p class="eyebrow">LIVE DECISION STREAM</p><h2>Security posture</h2></div><span id="rounds" class="rounds">0 rounds</span></div>
+        <div class="posture"><div class="gauge"><div class="gauge-inner"><strong id="posture-value">—</strong><small>risk</small></div></div><div class="decision"><span class="decision-tag" id="decision-action">READY</span><h3 id="decision-title">Standing by for telemetry</h3><p id="decision-copy">Start Live Mode or inject a safe scenario to show FACIE’s decision loop.</p></div></div>
+        <div class="signal-row"><div><span>BEHAVIOR SIGNALS</span><b id="signal-summary">No active signal</b></div><div><span>RESPONSE</span><b id="response-summary">Monitor only</b></div></div>
+      </article>
+
+      <article class="panel learning-panel">
+        <div class="panel-head"><div><p class="eyebrow">REINFORCEMENT MEMORY</p><h2>Policy learning</h2></div><span class="live-dot">LIVE</span></div>
+        <p class="panel-copy">Successful responses strengthen the policy used for the next comparable signal.</p>
+        <div id="learning-bars" class="learning-bars"></div>
+        <div class="learning-footer"><span>Latest reward</span><strong id="reward">+0</strong></div>
+      </article>
+    </section>
+
+    <section class="panel table-panel">
+      <div class="panel-head"><div><p class="eyebrow">INCIDENT LEDGER</p><h2>Telemetry, verdicts, and actions</h2></div><span class="legend"><i class="critical"></i>Critical <i class="high"></i>High <i class="medium"></i>Medium</span></div>
+      <div class="table-wrap"><table><thead><tr><th>TIME</th><th>SCENARIO</th><th>SOURCE → ASSET</th><th>RISK</th><th>VERDICT</th><th>ACTION</th></tr></thead><tbody id="events"><tr class="empty"><td colspan="6">Initializing secure telemetry stream…</td></tr></tbody></table></div>
+    </section>
+
+    <footer><span>FACIE SENTINEL · HACKATHON DEMO</span><span>Privacy-first simulated data · Decision support, not autonomous enforcement</span></footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
