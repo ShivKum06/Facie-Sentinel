@@ -8,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from sentinel import database
 from sentinel.detection import detect
+from sentinel.facie import facie
 from sentinel.ml_anomaly import anomaly_score
 from sentinel.models import OverrideRequest, RequestContext, utc_now
 from sentinel.protection import redact_sensitive_data, inspect_request_controls, RESOURCE_OWNERSHIP
@@ -92,7 +93,9 @@ async def security_gateway(request: Request, call_next):
     signals = detect(context)
     signals.extend(inspect_request_controls(context))
     security = build_result(request_id, signals, anomaly_score=anomaly_value)
-    decision = decide(security)
+    baseline_decision = decide(security)
+    facie_result = facie.recommend(security, baseline_decision)
+    decision = baseline_decision.model_copy(update={"decision": facie_result["action"], "reason": facie_result["reason"], "policy": "FACIE-ADAPTIVE"})
     dashboard_api = request.url.path in {"/api/events", "/api/incidents", "/api/endpoints", "/api/stats"} or request.url.path.startswith("/api/incidents/")
     if decision.decision == "BLOCK" and not dashboard_api:
         response = JSONResponse({"detail": "Blocked by API Sentinel", "request_id": request_id}, status_code=403)
@@ -119,8 +122,8 @@ async def security_gateway(request: Request, call_next):
     database.insert("api_requests", request_row)
     if signals:
         event_id = database.insert("security_events", {"request_id": request_id, "threat_type": security.threat_type, "rule_score": security.threat_score, "anomaly_score": security.anomaly_score, "risk_score": security.risk_score, "severity": security.severity, "reason": "; ".join(security.reasons), "created_at": utc_now()})
-        incident_id = database.insert("incidents", {"event_id": event_id, "endpoint": context.endpoint, "ip": ip, "threat_type": security.threat_type, "risk_score": security.risk_score, "action": decision.decision, "status": "OPEN", "created_at": utc_now()})
-        await hub.broadcast({"event": "THREAT_DETECTED", "incident_id": f"INC-{incident_id}", "risk_score": security.risk_score, "severity": security.severity, "endpoint": context.endpoint, "threat_type": security.threat_type})
+        incident_id = database.insert("incidents", {"event_id": event_id, "endpoint": context.endpoint, "ip": ip, "threat_type": security.threat_type, "risk_score": security.risk_score, "action": decision.decision, "status": "OPEN", "created_at": utc_now(), "ai_action": facie_result["action"], "ai_confidence": facie_result["confidence"], "ai_reason": facie_result["reason"], "facie_state": facie_result["state"]})
+        await hub.broadcast({"event": "THREAT_DETECTED", "incident_id": f"INC-{incident_id}", "risk_score": security.risk_score, "severity": security.severity, "endpoint": context.endpoint, "threat_type": security.threat_type, "action": decision.decision, "facie": facie_result})
     response.headers["x-request-id"] = request_id
     return response
 
@@ -177,6 +180,9 @@ def override(incident_id: int, payload: OverrideRequest):
     database.insert("audit_logs", {"incident_id": incident_id, "original_action": original_action, "new_action": payload.action, "reason": payload.reason, "actor": payload.reviewer, "created_at": utc_now()})
     write_audit_log(incident_id, original_action, payload.action, payload.reason, payload.reviewer)
     with database.connect() as db: db.execute("UPDATE incidents SET action = ?, status = 'OVERRIDDEN' WHERE id = ?", (payload.action, incident_id))
+    if incident_row.get("facie_state"):
+        reward = 2 if payload.action == incident_row.get("ai_action") else -1
+        facie.learn(incident_row["facie_state"], payload.action, reward)
     return {"incident_id": incident_id, "action": payload.action, "status": "OVERRIDDEN"}
 
 @app.get("/api/endpoints")
@@ -184,7 +190,11 @@ def endpoints(): return database.rows("SELECT endpoint, COUNT(*) AS requests FRO
 
 @app.get("/api/stats")
 def stats():
-    return {"apis_protected": 7, "requests": database.one("SELECT COUNT(*) AS count FROM api_requests")["count"], "threats": database.one("SELECT COUNT(*) AS count FROM security_events")["count"], "blocked": database.one("SELECT COUNT(*) AS count FROM incidents WHERE action = 'BLOCK'")["count"], "critical": database.one("SELECT COUNT(*) AS count FROM incidents WHERE risk_score >= 80")["count"]}
+    return {"apis_protected": 7, "requests": database.one("SELECT COUNT(*) AS count FROM api_requests")["count"], "threats": database.one("SELECT COUNT(*) AS count FROM security_events")["count"], "blocked": database.one("SELECT COUNT(*) AS count FROM incidents WHERE action = 'BLOCK'")["count"], "critical": database.one("SELECT COUNT(*) AS count FROM incidents WHERE risk_score >= 80")["count"], "facie": facie.status()}
+
+@app.get("/api/facie/status")
+def facie_status():
+    return facie.status()
 
 @app.websocket("/ws/events")
 async def websocket_events(socket: WebSocket):

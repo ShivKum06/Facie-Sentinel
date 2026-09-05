@@ -10,8 +10,8 @@
 <body><main>
 <header><div><div class="live"><span class="dot"></span>LIVE MONITORING</div><h1>API SENTINEL</h1></div><button onclick="load()">Refresh</button></header>
 <section class="metrics" id="stats"></section>
-<article><h2>Incidents</h2><table><thead><tr><th>ID</th><th>Threat</th><th>Endpoint</th><th>Risk</th><th>Action</th></tr></thead><tbody id="incidents"></tbody></table></article>
-<article class="detail" id="detail"><h2 id="detail-title"></h2><div class="detail-grid"><div><div class="label">Threat</div><div class="value" id="detail-threat"></div></div><div><div class="label">Endpoint</div><div class="value" id="detail-endpoint"></div></div><div><div class="label">Risk</div><div class="value" id="detail-risk"></div></div></div><p class="label">Why Sentinel flagged it</p><ul class="reasons" id="detail-reasons"></ul><p><span class="label">Current action</span><br><strong id="detail-action"></strong></p><div class="actions"><button onclick="overrideIncident('ALLOW')">Override: Allow</button><button class="danger" onclick="overrideIncident('BLOCK')">Keep Blocked</button></div></article>
+<article><h2>Incidents</h2><table><thead><tr><th>ID</th><th>Threat</th><th>Endpoint</th><th>Risk</th><th>Facie</th><th>Action</th></tr></thead><tbody id="incidents"></tbody></table></article>
+<article class="detail" id="detail"><h2 id="detail-title"></h2><div class="detail-grid"><div><div class="label">Threat</div><div class="value" id="detail-threat"></div></div><div><div class="label">Endpoint</div><div class="value" id="detail-endpoint"></div></div><div><div class="label">Risk</div><div class="value" id="detail-risk"></div></div><div><div class="label">Facie confidence</div><div class="value" id="detail-confidence"></div></div></div><p class="label">Why Sentinel flagged it</p><ul class="reasons" id="detail-reasons"></ul><p><span class="label">Current action</span><br><strong id="detail-action"></strong></p><div class="actions"><button onclick="overrideIncident('ALLOW')">Override: Allow</button><button class="danger" onclick="overrideIncident('BLOCK')">Keep Blocked</button></div></article>
 </main>
 <script>
 const backendOrigin = window.__API_SENTINEL_BACKEND__ || `${window.location.protocol === 'file:' ? 'http:' : window.location.protocol}//${window.location.hostname || '127.0.0.1'}:8000`;
@@ -46,8 +46,9 @@ async function load(){
       fetchJson(api+'/api/stats'),
       fetchJson(api+'/api/incidents')
     ]);
-    document.querySelector('#stats').innerHTML=[['APIs Protected',stats.apis_protected],['Requests',stats.requests],['Threats',stats.threats],['Blocked',stats.blocked],['Critical',stats.critical]].map(x=>`<div class="stat">${x[0]}<b>${x[1]}</b></div>`).join('');
-    document.querySelector('#incidents').innerHTML=incidents.map(x=>`<tr data-id="${x.id}" onclick="showIncident(${x.id})" class="${selected && selected.id === x.id ? 'selected' : ''}"><td>INC-${x.id}</td><td>${x.threat_type}</td><td>${x.endpoint}</td><td class="risk">${x.risk_score}/100</td><td><span class="action-pill ${actionClass(x.action)}">${x.action}</span></td></tr>`).join('');
+    const facieLabel = stats.facie?.status === 'ready' ? `READY · ${stats.facie.states} states` : 'OFFLINE';
+    document.querySelector('#stats').innerHTML=[['APIs Protected',stats.apis_protected],['Requests',stats.requests],['Threats',stats.threats],['Blocked',stats.blocked],['Critical',stats.critical],['Facie Engine',facieLabel]].map(x=>`<div class="stat">${x[0]}<b>${x[1]}</b></div>`).join('');
+    document.querySelector('#incidents').innerHTML=incidents.map(x=>`<tr data-id="${x.id}" onclick="showIncident(${x.id})" class="${selected && selected.id === x.id ? 'selected' : ''}"><td>INC-${x.id}</td><td>${x.threat_type}</td><td>${x.endpoint}</td><td class="risk">${x.risk_score}/100</td><td><span class="action-pill ${actionClass(x.ai_action || x.action)}">${x.ai_action || x.action}</span></td><td><span class="action-pill ${actionClass(x.action)}">${x.action}</span></td></tr>`).join('');
     highlightSelectedRow();
   } catch (error) {
     console.error('Failed to refresh Sentinel dashboard', error);
@@ -64,6 +65,7 @@ async function showIncident(id){
     document.querySelector('#detail-threat').textContent=selected.threat_type;
     document.querySelector('#detail-endpoint').textContent=selected.endpoint;
     document.querySelector('#detail-risk').textContent=selected.risk_score+'/100';
+    document.querySelector('#detail-confidence').textContent=selected.ai_confidence ? Math.round(selected.ai_confidence*100)+'%' : 'n/a';
     document.querySelector('#detail-action').textContent=selected.action;
     document.querySelector('#detail-action').style.color = selected.action === 'ALLOW' ? '#8fe38d' : selected.action === 'BLOCK' ? '#ff7568' : '#ffcf66';
     document.querySelector('#detail-reasons').innerHTML=(event?.reason||'Security rule matched').split('; ').map(x=>`<li>${x}</li>`).join('');

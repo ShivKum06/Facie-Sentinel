@@ -92,3 +92,16 @@ def test_override_records_action_and_writes_log_file():
     log_text = log_path.read_text(encoding="utf-8")
     assert "ALLOW" in log_text
     assert "incident_id" in log_text
+
+
+def test_facie_is_live_and_persists_recommendation():
+    with TestClient(app) as client:
+        status = client.get("/api/facie/status")
+        response = client.get("/search", params={"q": "union select password from users"})
+        incidents = client.get("/api/incidents").json()
+
+    assert status.status_code == 200
+    assert status.json()["status"] == "ready"
+    assert response.status_code == 403
+    assert incidents[0]["ai_action"] == "BLOCK"
+    assert incidents[0]["ai_confidence"] > 0.5

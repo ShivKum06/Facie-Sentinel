@@ -33,6 +33,10 @@ def init_db() -> None:
             new_action TEXT, reason TEXT, actor TEXT, created_at TEXT
         );
         ''')
+        columns = {row["name"] for row in db.execute("PRAGMA table_info(incidents)").fetchall()}
+        for column, definition in (("ai_action", "TEXT"), ("ai_confidence", "REAL"), ("ai_reason", "TEXT"), ("facie_state", "TEXT")):
+            if column not in columns:
+                db.execute(f"ALTER TABLE incidents ADD COLUMN {column} {definition}")
 
 
 def insert(table: str, values: dict[str, Any]) -> int:
