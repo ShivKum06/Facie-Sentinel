@@ -105,3 +105,19 @@ def test_facie_is_live_and_persists_recommendation():
     assert response.status_code == 403
     assert incidents[0]["ai_action"] == "BLOCK"
     assert incidents[0]["ai_confidence"] > 0.5
+
+
+def test_abuse_is_rate_limited_and_request_ids_are_collision_safe():
+    with TestClient(app) as client:
+        responses = [client.get("/products", headers={"x-forwarded-for": "10.0.0.240", "x-request-id": "same-id"}) for _ in range(77)]
+
+    assert any(response.status_code == 429 for response in responses)
+    assert all(response.status_code in {200, 429} for response in responses)
+
+
+def test_oversized_request_body_is_rejected_before_route_execution():
+    with TestClient(app) as client:
+        response = client.post("/api/v1/user/profile", content=b"x" * (1024 * 1024 + 1), headers={"content-type": "application/json"})
+
+    assert response.status_code == 413
+    assert response.json()["max_bytes"] == 1024 * 1024

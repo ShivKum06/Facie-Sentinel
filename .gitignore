@@ -3,6 +3,7 @@ __pycache__/
 *.py[cod]
 .venv/
 sentinel.db
+sentinel.db-*
 sentinel/model.pkl
 sentinel_audit.log
 ~$*.docx

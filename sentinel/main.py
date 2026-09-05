@@ -1,5 +1,9 @@
 import time
 import uuid
+import json
+import os
+import re
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import unquote_plus
@@ -16,16 +20,15 @@ from sentinel.response import decide
 from sentinel.risk import build_result
 
 AUDIT_LOG_PATH = Path(__file__).resolve().parent.parent / "sentinel_audit.log"
+MAX_BODY_BYTES = int(os.getenv("SENTINEL_MAX_BODY_BYTES", "1048576"))
+REQUEST_ID_PATTERN = re.compile(r"^[A-Za-z0-9_.:-]{1,80}$")
+AUDIT_LOCK = threading.Lock()
 
 
 def write_audit_log(incident_id: int, original_action: str, new_action: str, reason: str, reviewer: str) -> None:
-    timestamp = utc_now()
-    entry = (
-        f"{timestamp} | incident_id={incident_id} | original_action={original_action} | "
-        f"new_action={new_action} | reviewer={reviewer} | reason={reason}\n"
-    )
-    with AUDIT_LOG_PATH.open("a", encoding="utf-8") as handle:
-        handle.write(entry)
+    entry = {"timestamp": utc_now(), "incident_id": incident_id, "original_action": original_action, "new_action": new_action, "reviewer": reviewer, "reason": reason}
+    with AUDIT_LOCK, AUDIT_LOG_PATH.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(entry, separators=(",", ":")) + "\n")
 
 class Hub:
     def __init__(self): self.connections: set[WebSocket] = set()
@@ -64,8 +67,16 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], all
 @app.middleware("http")
 async def security_gateway(request: Request, call_next):
     started = time.perf_counter()
+    declared_length = request.headers.get("content-length")
+    if declared_length and declared_length.isdigit() and int(declared_length) > MAX_BODY_BYTES:
+        return JSONResponse({"detail": "Request body exceeds configured limit", "max_bytes": MAX_BODY_BYTES}, status_code=413)
     body = await request.body()
-    request_id = request.headers.get("x-request-id", f"REQ-{uuid.uuid4().hex[:8].upper()}")
+    if len(body) > MAX_BODY_BYTES:
+        return JSONResponse({"detail": "Request body exceeds configured limit", "max_bytes": MAX_BODY_BYTES}, status_code=413)
+    supplied_request_id = request.headers.get("x-request-id", "")
+    request_id = supplied_request_id if REQUEST_ID_PATTERN.fullmatch(supplied_request_id) else f"REQ-{uuid.uuid4().hex[:12].upper()}"
+    if database.one("SELECT id FROM api_requests WHERE request_id = ?", (request_id,)):
+        request_id = f"REQ-{uuid.uuid4().hex[:12].upper()}"
     forwarded_for = request.headers.get("x-forwarded-for") or request.headers.get("x-real-ip")
     ip = forwarded_for.split(",")[0].strip() if forwarded_for else (request.client.host if request.client else "127.0.0.1")
     query = unquote_plus(str(request.url.query))
@@ -96,9 +107,11 @@ async def security_gateway(request: Request, call_next):
     baseline_decision = decide(security)
     facie_result = facie.recommend(security, baseline_decision)
     decision = baseline_decision.model_copy(update={"decision": facie_result["action"], "reason": facie_result["reason"], "policy": "FACIE-ADAPTIVE"})
-    dashboard_api = request.url.path in {"/api/events", "/api/incidents", "/api/endpoints", "/api/stats"} or request.url.path.startswith("/api/incidents/")
+    dashboard_api = request.url.path in {"/api/events", "/api/incidents", "/api/endpoints", "/api/stats", "/api/facie/status"} or request.url.path.startswith("/api/incidents/")
     if decision.decision == "BLOCK" and not dashboard_api:
         response = JSONResponse({"detail": "Blocked by API Sentinel", "request_id": request_id}, status_code=403)
+    elif decision.decision == "RATE_LIMIT" and not dashboard_api:
+        response = JSONResponse({"detail": "Rate limit exceeded", "request_id": request_id}, status_code=429, headers={"Retry-After": "60"})
     else:
         response = await call_next(request)
     response, pii_leaks = await redact_json_response(response)
@@ -109,7 +122,9 @@ async def security_gateway(request: Request, call_next):
             "reason": f"Sensitive response data was masked: {', '.join(pii_leaks)}",
         })
         security = build_result(request_id, signals, anomaly_score=anomaly_value)
-        decision = decide(security)
+        baseline_decision = decide(security)
+        facie_result = facie.recommend(security, baseline_decision)
+        decision = baseline_decision.model_copy(update={"decision": facie_result["action"], "reason": facie_result["reason"], "policy": "FACIE-ADAPTIVE"})
     context.status_code = response.status_code
     context.response_size = int(response.headers.get("content-length", "0"))
     context.latency_ms = round((time.perf_counter() - started) * 1000, 2)

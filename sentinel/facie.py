@@ -49,7 +49,7 @@ class FaciePolicy:
             scores = dict(self._q_table.get(state, {}))
         scores.setdefault(baseline.decision, 0.5)
         action = max(scores, key=scores.get)
-        if result.threat_type == "INJECTION" or result.risk_score >= 80 and result.threat_type not in {"API_ENUMERATION", "BRUTE_FORCE"}:
+        if result.threat_type == "INJECTION" or result.risk_score >= 80 and result.threat_type not in {"API_ENUMERATION", "BRUTE_FORCE", "RATE_ABUSE"}:
             action = "BLOCK"
         elif result.threat_type == "API_ENUMERATION" and action == "ALLOW":
             action = "REVIEW"

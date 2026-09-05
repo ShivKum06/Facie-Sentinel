@@ -8,11 +8,14 @@ DB_PATH = Path(__file__).resolve().parent.parent / "sentinel.db"
 def connect() -> sqlite3.Connection:
     connection = sqlite3.connect(DB_PATH)
     connection.row_factory = sqlite3.Row
+    connection.execute("PRAGMA busy_timeout = 5000")
+    connection.execute("PRAGMA foreign_keys = ON")
     return connection
 
 
 def init_db() -> None:
     with connect() as db:
+        db.execute("PRAGMA journal_mode = WAL")
         db.executescript('''
         CREATE TABLE IF NOT EXISTS api_requests (
             id INTEGER PRIMARY KEY AUTOINCREMENT, request_id TEXT UNIQUE, timestamp TEXT,

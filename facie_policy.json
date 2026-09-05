@@ -1,0 +1,26 @@
+{
+  "API_ENUMERATION|CRITICAL|high": {
+    "ALLOW": -1.0,
+    "BLOCK": -1.0
+  },
+  "API_ENUMERATION|HIGH|medium": {
+    "RATE_LIMIT": 4.0,
+    "REVIEW": 5.0
+  },
+  "BRUTE_FORCE|HIGH|medium": {
+    "RATE_LIMIT": 5.0,
+    "REVIEW": 3.0
+  },
+  "INJECTION|CRITICAL|high": {
+    "BLOCK": 8.0,
+    "REVIEW": 1.0
+  },
+  "NONE|LOW|0": {
+    "ALLOW": 4.0,
+    "MONITOR": 1.0
+  },
+  "RATE_ABUSE|HIGH|medium": {
+    "BLOCK": 2.0,
+    "RATE_LIMIT": 6.0
+  }
+}

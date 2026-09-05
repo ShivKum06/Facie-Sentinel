@@ -10,6 +10,7 @@ FAILED_LOGIN_LIMIT = 3
 _requests: defaultdict[str, deque[float]] = defaultdict(deque)
 _failed_logins: defaultdict[str, deque[float]] = defaultdict(deque)
 _objects: defaultdict[tuple[str, str], dict[str, float]] = defaultdict(dict)
+MAX_TRACKED_KEYS = 10000
 
 
 def _recent(bucket: deque[float], now: float) -> int:
@@ -20,6 +21,30 @@ def _recent(bucket: deque[float], now: float) -> int:
 
 def detect(context: RequestContext) -> list[dict[str, object]]:
     now = time.time()
+    if len(_requests) > MAX_TRACKED_KEYS:
+        for key, bucket in list(_requests.items()):
+            _recent(bucket, now)
+            if not bucket:
+                del _requests[key]
+            if len(_requests) <= MAX_TRACKED_KEYS:
+                break
+    if len(_failed_logins) > MAX_TRACKED_KEYS:
+        for key, bucket in list(_failed_logins.items()):
+            _recent(bucket, now)
+            if not bucket:
+                del _failed_logins[key]
+            if len(_failed_logins) <= MAX_TRACKED_KEYS:
+                break
+    if len(_objects) > MAX_TRACKED_KEYS:
+        cutoff = now - WINDOW_SECONDS
+        for key, object_ids in list(_objects.items()):
+            for object_id, seen_at in list(object_ids.items()):
+                if seen_at < cutoff:
+                    del object_ids[object_id]
+            if not object_ids:
+                del _objects[key]
+            if len(_objects) <= MAX_TRACKED_KEYS:
+                break
     signals: list[dict[str, object]] = []
     requests = _requests[context.ip]
     requests.append(now)
