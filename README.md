@@ -258,16 +258,6 @@ Human-in-the-loop security
 
 It should not be considered a production-ready security gateway without additional testing, hardening, and infrastructure.
 
-👨‍💻 Author
-
-Shiv Kumbhar
-
-GitHub:
-https://github.com/ShivKum06
-
-Project:
-https://github.com/ShivKum06/Facie-Sentinel
-
 🛡️ Facie Sentinel
 
 Detect. Analyze. Adapt. Protect.
