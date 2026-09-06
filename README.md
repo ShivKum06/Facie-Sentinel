@@ -1,4 +1,4 @@
-# 🛡️ Facie Sentinel
+# FACIE Sentinel
 
 ### Adaptive API Security Gateway with Risk Detection & Anomaly Detection
 
